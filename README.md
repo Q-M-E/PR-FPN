@@ -1,4 +1,4 @@
-PR-FPN: Progressive Spatial and Channel Feature-Refined Pyramid Network for Object Detection ([arXiv](https://arxiv.org/submit/5629518/view))
+PR-FPN: Progressive Spatial and Channel Feature-Refined Pyramid Network for Object Detection
 ---------------------
 This project is based on [mmdetection](https://github.com/open-mmlab/mmdetection), [mmyolo](https://github.com/open-mmlab/mmyolo), [detectron2](https://github.com/facebookresearch/detectron2).
 
