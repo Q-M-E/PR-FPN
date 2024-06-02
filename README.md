@@ -43,14 +43,14 @@ Single gpu for training:
 ```shell
 CUDA_VISIBLE_DEVICES=0 python ./mmdetection/tools/train.py faster-rcnn_r50_prfpn_1x_coco.py --work-dir ./weight/
 
-python3 ./detectron2/tools/train_net.py --config-file ./configs/COCO-Detection/mask_rcnn_R_50_PRFPN_1x.yaml --num-gpus 1
+python3 ./detectron2/tools/train_net.py --config-file ./detectron2/configs/COCO-Detection/mask_rcnn_R_50_PRFPN_1x.yaml --num-gpus 1
 ```
 
 Multiple gpus for training:
 ```shell
 CUDA_VISIBLE_DEVICES=0,1 ./mmdetection/tools/dist_train.sh faster-rcnn_r50_prfpn_1x_coco.py 2 --work-dir ./weight/
 
-python3 ./detectron2/tools/train_net.py --config-file ./configs/COCO-Detection/mask_rcnn_R_50_PRFPN_1x.yaml --num-gpus 2
+python3 ./detectron2/tools/train_net.py --config-file ./detectron2/configs/COCO-Detection/mask_rcnn_R_50_PRFPN_1x.yaml --num-gpus 2
 ```
 If you want to train more models, please refer to [train.py](train.py).
 
