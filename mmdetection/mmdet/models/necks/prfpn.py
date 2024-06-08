@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dcn_v2 import DCN as dcn_v2
+from DCNv4 import DCNv4 as dcn_v4
 from detectron2.layers import Conv2d, get_norm
 from mmdet.registry import MODELS
 
