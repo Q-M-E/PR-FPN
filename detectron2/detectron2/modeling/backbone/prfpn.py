@@ -16,6 +16,7 @@ from .resnet import build_resnet_backbone
 __all__ = ["build_resnet_prfpn_backbone", "build_retinanet_resnet_prfpn_backbone", "PRFPN_backbone"]
 
 from dcn_v2 import DCN as dcn_v2
+from DCNv4 import DCNv4 as dcn_v4
 from detectron2.layers import (CNNBlockBase, Conv2d, DeformConv, ModulatedDeformConv, ShapeSpec, get_norm, )
 
 
@@ -293,8 +294,10 @@ class adjust(nn.Module):
     def __init__(self, out_nc=128, norm=None):
         super(adjust, self).__init__()
         self.offset = Conv2d(out_nc * 2, out_nc, kernel_size=1, stride=1, padding=0, bias=False, norm=norm)
-        self.dcpack_L2 = dcn_v2(out_nc, out_nc, 3, stride=1, padding=1, dilation=1, deformable_groups=8,
-                                extra_offset_mask=True)
+        self.dcnpack = dcn_v4(out_nc, 3, stride=1, padding=1, dilation=1, group=4,
+                              extra_offset_mask=True)
+        # self.dcnpack = dcn_v2(out_nc, out_nc, 3, stride=1, padding=1, dilation=1, deformable_groups=8,
+        #                         extra_offset_mask=True)
         self.relu = nn.ReLU(inplace=True)
         weight_init.c2_xavier_fill(self.offset)
 
@@ -304,8 +307,8 @@ class adjust(nn.Module):
         #     feat_up = F.interpolate(feat_s, HW, mode='bilinear', align_corners=False)
         # else:
         #     feat_up = feat_s
-        offset = self.offset(torch.cat([feat_u, feat_s * 2], dim=1))  # concat for offset by compute the dif
-        feat_adjust = self.relu(self.dcpack_L2([feat_s, offset], main_path))  # [feat, offset]
+        offset = self.offset(torch.cat([feat_u, feat_s * 2], dim=1))  # concat for offset by computing the dif
+        feat_adjust = self.relu(self.dcnpack([feat_s, offset]))  # [feat, offset]
         return feat_adjust
 
 
