@@ -16,7 +16,7 @@ dcn_4==1.0.0 (recommend)
 
 Install
 -------------
-Please refer to [mmdetection](https://mmdetection.readthedocs.io/en/latest/get_started.html), [mmyolo](https://mmyolo.readthedocs.io/en/latest/get_started/installation.html), [detectron2](https://detectron2.readthedocs.io/tutorials/install.html), [dcnv4](https://github.com/OpenGVLab/DCNv4/README.md) for installation.
+Please refer to [mmdetection](https://mmdetection.readthedocs.io/en/latest/get_started.html), [mmyolo](https://mmyolo.readthedocs.io/en/latest/get_started/installation.html), [detectron2](https://detectron2.readthedocs.io/tutorials/install.html), [dcnv4](https://github.com/OpenGVLab/DCNv4) for installation.
 
 Dataset
 ----------
