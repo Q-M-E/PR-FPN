@@ -184,39 +184,41 @@ class SRB(nn.Module):
 
 class CRB(nn.Module):
     """
-    alpha: 0<alpha<1
+    gamma: 0<gamma<1
     """
 
     def __init__(self,
                  op_channel: int,
-                 alpha: float = 1 / 2,
+                 gamma: float = 1 / 2,
                  squeeze_ratio: int = 2,
                  group_size: int = 2,
                  group_kernel_size: int = 3,
                  ):
         super().__init__()
-        self.up_channel = up_channel = int(alpha * op_channel)
-        self.low_channel = low_channel = op_channel - up_channel
-        self.squeeze1 = nn.Conv2d(up_channel, up_channel // squeeze_ratio, kernel_size=1, bias=False)
-        self.squeeze2 = nn.Conv2d(low_channel, low_channel // squeeze_ratio, kernel_size=1, bias=False)
-        # up
-        self.GWC = nn.Conv2d(up_channel // squeeze_ratio, op_channel, kernel_size=group_kernel_size, stride=1,
+        self.low_channel = low_channel = int(gamma * op_channel)
+        self.up_channel = up_channel = op_channel - low_channel
+        self.squeeze1 = nn.Conv2d(low_channel, low_channel // squeeze_ratio, kernel_size=1, bias=False)
+        self.squeeze2 = nn.Conv2d(up_channel, up_channel // squeeze_ratio, kernel_size=1, bias=False)
+        # lower
+        self.GWC = nn.Conv2d(low_channel // squeeze_ratio, op_channel, kernel_size=group_kernel_size, stride=1,
                              padding=group_kernel_size // 2, groups=group_size)
-        self.PWC1 = nn.Conv2d(up_channel // squeeze_ratio, op_channel, kernel_size=1, bias=False)
-        # low
-        self.PWC2 = nn.Conv2d(low_channel // squeeze_ratio, op_channel - low_channel // squeeze_ratio, kernel_size=1,
+        self.PWC1 = nn.Conv2d(low_channel // squeeze_ratio, op_channel, kernel_size=1, bias=False)
+
+        # upper
+        self.PWC2 = nn.Conv2d(up_channel // squeeze_ratio, op_channel - up_channel // squeeze_ratio, kernel_size=1,
                               bias=False)
+
         self.advavg = nn.AdaptiveAvgPool2d(1)
 
     def forward(self, x):
-        # Split
-        up, low = torch.split(x, [self.up_channel, self.low_channel], dim=1)
-        up, low = self.squeeze1(up), self.squeeze2(low)
-        # Transform
-        Y1 = self.GWC(up) + self.PWC1(up)
-        Y2 = torch.cat([self.PWC2(low), low], dim=1)
-        # Fuse
-        out = torch.cat([Y1, Y2], dim=1)
+        # partition
+        low, up = torch.split(x, [self.low_channel, self.up_channel], dim=1)
+        low, up = self.squeeze1(low), self.squeeze2(up)
+        # re-extract
+        Z1 = self.GWC(low) + self.PWC1(low)
+        Z2 = torch.cat([self.PWC2(up), up], dim=1)
+        # re-fuse
+        out = torch.cat([Z1, Z2], dim=1)
         out = F.softmax(self.advavg(out), dim=1) * out
         out1, out2 = torch.split(out, out.size(1) // 2, dim=1)
         return out1 + out2
@@ -228,7 +230,7 @@ class SCR(nn.Module):
                  group_num: int = 12,
                  group_kernel_size: int = 3,
                  gate_treshold: float = 0.5,
-                 alpha: float = 1 / 2,
+                 gamma: float = 1 / 2,
                  squeeze_ratio: int = 2,
                  group_size: int = 2,
                  num_fusion=2,
@@ -241,7 +243,7 @@ class SCR(nn.Module):
                        num_fusion=num_fusion,
                        compress_c=compress_c)
         self.CRB = CRB(op_channel,
-                       alpha=alpha,
+                       gamma=gamma,
                        squeeze_ratio=squeeze_ratio,
                        group_size=group_size,
                        group_kernel_size=group_kernel_size)
