@@ -163,6 +163,10 @@ class SRB(nn.Module):
                                 input3 * levels_weight[:, 2:3, :, :] + \
                                 input4 * levels_weight[:, 3:, :, :]
 
+        y = self.restructure(fused_out_reduced)
+        return y
+
+    def restructure(self, fused_out_reduced):
         gn_x = self.gn(fused_out_reduced)
         w_gamma = self.gn.weight / sum(self.gn.weight)
         w_gamma = w_gamma.view(1, -1, 1, 1)
@@ -172,11 +176,6 @@ class SRB(nn.Module):
         w2 = torch.where(reweigts > self.gate_treshold, torch.zeros_like(reweigts), reweigts)  # 大于门限值的设为0，否则保留原值
         x_1 = w1 * fused_out_reduced
         x_2 = w2 * fused_out_reduced
-        y = self.restructure(x_1, x_2)
-        return y
-
-    @staticmethod
-    def restructure(x_1, x_2):
         x_11, x_12 = torch.split(x_1, x_1.size(1) // 2, dim=1)
         x_21, x_22 = torch.split(x_2, x_2.size(1) // 2, dim=1)
 
