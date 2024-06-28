@@ -40,6 +40,7 @@ class DCNv4(nn.Module):
             remove_center=False,
             output_bias=True,
             without_pointwise=False,
+            extra_offset_mask=False,
             **kwargs):
         """
         DCNv4 Module
@@ -75,11 +76,13 @@ class DCNv4(nn.Module):
         self.center_feature_scale = center_feature_scale
         self.remove_center = int(remove_center)
         self.without_pointwise = without_pointwise
+        self.extra_offset_mask = extra_offset_mask
 
-        self.K =  group * (kernel_size * kernel_size - self.remove_center)
+        self.K = group * (kernel_size * kernel_size - self.remove_center)
         if dw_kernel_size is not None:
-            self.offset_mask_dw = nn.Conv2d(channels, channels, dw_kernel_size, stride=1, padding=(dw_kernel_size - 1) // 2, groups=channels)
-        self.offset_mask = nn.Linear(channels, int(math.ceil((self.K * 3)/8)*8))
+            self.offset_mask_dw = nn.Conv2d(channels, channels, dw_kernel_size, stride=1,
+                                            padding=(dw_kernel_size - 1) // 2, groups=channels)
+        self.offset_mask = nn.Linear(channels, int(math.ceil((self.K * 3) / 8) * 8))
         if not without_pointwise:
             self.value_proj = nn.Linear(channels, channels)
             self.output_proj = nn.Linear(channels, channels, bias=output_bias)
@@ -102,28 +105,32 @@ class DCNv4(nn.Module):
             if self.output_proj.bias is not None:
                 constant_(self.output_proj.bias.data, 0.)
 
-    def forward(self, input, shape=None):
+    def forward(self, input):
         """
-        :param query                       (N, H, W, C)
-        :return output                     (N, H, W, C)
+        :param input                       (N, C, H, W)
+        :return output                     (N, C, H, W)
         """
-        N, L, C = input.shape
-        if shape is not None:
-            H, W = shape
-        else:
-            H, W = int(L**0.5), int(L**0.5)
+        N, C, H, W = input[0].shape
 
-
-        x = input
+        x = input[0].reshape(N, H, W, C)
         if not self.without_pointwise:
-            x = self.value_proj(x)
-        x = x.reshape(N, H, W, -1)
-        if self.dw_kernel_size is not None:
-            offset_mask_input = self.offset_mask_dw(input.view(N, H, W, C).permute(0, 3, 1, 2))
-            offset_mask_input = offset_mask_input.permute(0, 2, 3, 1).view(N, L, C)
+            x = self.value_proj(x.view(N, -1, C))
+            x = x.reshape(N, H, W, -1)
+
+        if self.extra_offset_mask:
+            if self.dw_kernel_size is not None:
+                offset_mask_input = self.offset_mask_dw(input[1])
+                offset_mask_input = offset_mask_input.permute(0, 2, 3, 1).view(N, -1, C)
+            else:
+                offset_mask_input = input[1].view(N, -1, C)
+            offset_mask = self.offset_mask(offset_mask_input).reshape(N, H, W, -1)
         else:
-            offset_mask_input = input
-        offset_mask = self.offset_mask(offset_mask_input).reshape(N, H, W, -1)
+            if self.dw_kernel_size is not None:
+                offset_mask_input = self.offset_mask_dw(input[0])
+                offset_mask_input = offset_mask_input.permute(0, 2, 3, 1).view(N, -1, C)
+            else:
+                offset_mask_input = input[0].view(N, -1, C)
+            offset_mask = self.offset_mask(offset_mask_input).reshape(N, H, W, -1)
 
         x_proj = x
 
@@ -137,7 +144,7 @@ class DCNv4(nn.Module):
             self.offset_scale,
             256,
             self.remove_center
-            )
+        )
 
         if self.center_feature_scale:
             center_feature_scale = self.center_feature_scale_module(
@@ -146,9 +153,7 @@ class DCNv4(nn.Module):
                 1, 1, 1, 1, self.channels // self.group).flatten(-2)
             x = x * (1 - center_feature_scale) + x_proj * center_feature_scale
 
-        x = x.view(N, L, -1)
-
         if not self.without_pointwise:
-            x = self.output_proj(x)
+            x = self.output_proj(x.view(N, -1, C)).reshape(N, H, W, C)
+        x = x.permute(0, 3, 1, 2)
         return x
-
